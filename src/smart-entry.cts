@@ -732,6 +732,22 @@ export function actionsFor(situation: Situation, s: SmartEntrySignals): SmartEnt
 
 // ─── Summary line ─────────────────────────────────────────────────────────────
 
+function phaseSummary(s: SmartEntrySignals): string {
+  const phase = s.current_phase ?? '?';
+  const total = s.total_phases;
+  // The phase ID is global, while STATE.md's total may count only the active
+  // milestone. Never present an impossible global-phase/relative-total ratio.
+  if (s.current_phase !== null && total !== null && Number(s.current_phase) > total) {
+    const roadmapTotal = s.roadmap_total_phases;
+    const roadmapDone = s.roadmap_completed_phases;
+    if (roadmapTotal !== null && roadmapDone !== null && roadmapTotal > 0) {
+      return `Phase ${phase} (${roadmapDone} of ${roadmapTotal} roadmap phases complete)`;
+    }
+    return `Phase ${phase}`;
+  }
+  return `Phase ${phase} of ${total ?? '?'}`;
+}
+
 function buildSummary(situation: Situation, s: SmartEntrySignals): string {
   switch (situation) {
     case 'no-project':
@@ -745,7 +761,7 @@ function buildSummary(situation: Situation, s: SmartEntrySignals): string {
     case 'needs-first-phase':
       return 'Project initialized — plan your first phase';
     case 'planning':
-      return `Phase ${s.current_phase ?? '?'} of ${s.total_phases ?? '?'} — needs a plan`;
+      return `${phaseSummary(s)} — needs a plan`;
     case 'executing':
       return progressLine('executing', s);
     case 'verify-pending':
@@ -763,7 +779,7 @@ function buildSummary(situation: Situation, s: SmartEntrySignals): string {
 function progressLine(tail: string, s: SmartEntrySignals): string {
   const parts: string[] = [];
   if (s.current_phase !== null && s.total_phases !== null) {
-    parts.push(`Phase ${s.current_phase} of ${s.total_phases}`);
+    parts.push(phaseSummary(s));
   } else if (s.current_phase !== null) {
     parts.push(`Phase ${s.current_phase}`);
   }
