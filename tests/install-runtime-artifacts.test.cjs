@@ -34,6 +34,15 @@ const { createTempDir, cleanup, writePackageSourceMarkerFixture } = require('./h
 const { runNode } = require('./helpers/process-seam.cjs');
 const { INSTALL_TIMEOUT_MS } = require('./helpers/timeouts.cjs');
 
+function useIsolatedHome(t) {
+  // A Windows temp directory is normally inside the caller's home directory.
+  // Use a sibling fixture so an install into another temp dir takes the
+  // absolute-path branch on every platform.
+  const fixtureHome = createTempDir('gsd-test-home-');
+  sandboxHome(t, fixtureHome);
+  t.after(() => cleanup(fixtureHome));
+}
+
 // Bound the writer subprocess so a regression that hangs the writer
 // (or the dispatcher) cannot deadlock CI (PR #3003 CR feedback).
 // 30s is generous for what should complete in <1s; if it trips,
@@ -2489,6 +2498,7 @@ describe('_applyRuntimeRewrites — cline custom-dir embedded path (Fix 1)', () 
   test('installRuntimeArtifacts cline with CLINE_CONFIG_DIR custom: SKILL.md embeds custom path', (t) => {
     const configDir = createTempDir('gsd-cline-custom-dir-');
     t.after(() => cleanup(configDir));
+    useIsolatedHome(t);
 
     const MANIFEST_FULL = require('../gsd-core/bin/lib/install-profiles.cjs').loadSkillsManifest(
       path.join(__dirname, '..', 'commands', 'gsd')
@@ -7963,6 +7973,7 @@ describe('installRuntimeArtifacts — G1: void-ignoring caller is unaffected (AC
     const configDirCaptured = createTempDir('gsd-g1-captured-');
     t.after(() => cleanup(configDirIgnored));
     t.after(() => cleanup(configDirCaptured));
+    useIsolatedHome(t);
 
     // Caller A: discards the return value entirely — today's every call site
     // (bin/install.js, both existing adapter test doubles).
