@@ -2773,6 +2773,26 @@ function dispatchOverlayCapabilityCommand({ command, args, cwd, raw, error, load
     };
     try {
       nodeFs.mkdirSync(sentinelDir, { recursive: true });
+      // User projects do not inherit gsd-core's root .gitignore. Ignore this
+      // tool-owned directory locally before writing the first sentinel.
+      const ignorePath = nodePath.join(sentinelDir, '.gitignore');
+      try {
+        nodeFs.writeFileSync(ignorePath, '*\n', { flag: 'wx' });
+      } catch (ignoreError) {
+        if (ignoreError.code !== 'EEXIST') throw ignoreError;
+        // Keep a pre-existing ignore file and add only the sentinel rules.
+        if (nodeFs.lstatSync(ignorePath).isSymbolicLink()) {
+          throw new Error('sentinel ignore file is a symlink');
+        }
+        const current = nodeFs.readFileSync(ignorePath, 'utf8');
+        if (!current.includes('# gsd-core dispatch sentinel')) {
+          nodeFs.appendFileSync(ignorePath,
+            `${current.endsWith('\n') ? '' : '\n'}# gsd-core dispatch sentinel\n` +
+            '/dispatch-isolation-sentinel.json\n' +
+            '/dispatch-isolation-sentinel.json.tmp-*\n' +
+            '/.gitignore\n');
+        }
+      }
       // Atomic write: unique temp file + rename, so a concurrent reader (a
       // guard hook firing mid-write) never observes a partially-written
       // sentinel. Unique per-process+time so concurrent orchestrator-worktree

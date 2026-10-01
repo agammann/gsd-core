@@ -50,7 +50,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const fc = require('./helpers/fast-check-setup.cjs');
-const { runHook: runHookSeam } = require('./helpers/process-seam.cjs');
+const { runHook: runHookSeam, runGit } = require('./helpers/process-seam.cjs');
 const { toLegacyResult, gitOrThrow } = require('./helpers/git-fixture.cjs');
 const { PROBE_TIMEOUT_MS, GIT_FIXTURE_TIMEOUT_MS } = require('./helpers/timeouts.cjs');
 const { createTempDir, createTempProject, runGsdTools, cleanup } = require('./helpers.cjs');
@@ -1027,6 +1027,48 @@ describe('#3045 CORE REDESIGN — dispatch-isolation records as an unconditional
     assert.equal(read.harnessFlag, 'isolation="worktree"');
     assert.equal(read.phase, '2');
     assert.equal(read.plan, 'p1');
+  });
+
+  test('dispatch sentinel stays ignored in a project without a root ignore rule (#5086)', (t) => {
+    const dir = createFixture({ prefix: 'gsd-5086-ignore-', git: true, planning: true, projectDoc: true });
+    t.after(() => cleanup(dir));
+    const result = runGsdTools(
+      ['query', 'dispatch-isolation', '--raw'], dir,
+      { GSD_RUNTIME: 'claude', HOME: dir, USERPROFILE: dir },
+    );
+    assert.equal(result.success, true, result.error);
+    assert.equal(readSentinelRaw(dir).isolation, 'harness-worktree');
+
+    const status = runGit(['status', '--short', '--', '.gsd'], {
+      cwd: dir, timeoutMs: GIT_FIXTURE_TIMEOUT_MS,
+    });
+    assert.equal(status.exitCode, 0, status.stderr);
+    assert.equal(status.stdout.trim(), '', 'the sentinel must not appear in git status');
+  });
+
+  test('dispatch sentinel preserves an existing local ignore file (#5086)', (t) => {
+    const dir = createFixture({ prefix: 'gsd-5086-existing-', git: true, planning: true, projectDoc: true });
+    t.after(() => cleanup(dir));
+    const gsdDir = path.join(dir, '.gsd');
+    fs.mkdirSync(gsdDir);
+    const ignorePath = path.join(gsdDir, '.gitignore');
+    fs.writeFileSync(ignorePath, '!keep.txt\n');
+    fs.writeFileSync(path.join(gsdDir, 'keep.txt'), 'keep\n');
+
+    const env = { GSD_RUNTIME: 'claude', HOME: dir, USERPROFILE: dir };
+    for (let i = 0; i < 2; i++) {
+      const result = runGsdTools(['query', 'dispatch-isolation', '--raw'], dir, env);
+      assert.equal(result.success, true, result.error);
+    }
+    const ignoreText = fs.readFileSync(ignorePath, 'utf8');
+    assert.ok(ignoreText.startsWith('!keep.txt\n'));
+    assert.equal(ignoreText.match(/# gsd-core dispatch sentinel/g)?.length, 1);
+
+    const status = runGit(['status', '--short', '--untracked-files=all', '--', '.gsd'], {
+      cwd: dir, timeoutMs: GIT_FIXTURE_TIMEOUT_MS,
+    });
+    assert.equal(status.exitCode, 0, status.stderr);
+    assert.equal(status.stdout.trim(), '?? .gsd/keep.txt');
   });
 
   // #3737 — the project-level opt-out (workflow.use_worktrees === false) is
