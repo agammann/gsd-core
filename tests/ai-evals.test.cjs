@@ -62,7 +62,7 @@ describe('CONFIG: workflow.ai_integration_phase default', () => {
   afterEach(() => { cleanup(tmpDir); });
 
   test('config-ensure-section includes workflow.ai_integration_phase as boolean', () => {
-    const result = runGsdTools('config-ensure-section', tmpDir);
+    const result = runGsdTools('config-ensure-section', tmpDir, { HOME: tmpDir, USERPROFILE: tmpDir });
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const config = readConfig(tmpDir);
@@ -71,7 +71,7 @@ describe('CONFIG: workflow.ai_integration_phase default', () => {
   });
 
   test('workflow.ai_integration_phase defaults to true', () => {
-    runGsdTools('config-ensure-section', tmpDir);
+    runGsdTools('config-ensure-section', tmpDir, { HOME: tmpDir, USERPROFILE: tmpDir });
     const config = readConfig(tmpDir);
     assert.strictEqual(config.workflow.ai_integration_phase, true, 'workflow.ai_integration_phase should default to true');
   });
@@ -84,7 +84,7 @@ describe('CONFIG: config-set / config-get workflow.ai_integration_phase', () => 
 
   beforeEach(() => {
     tmpDir = createTempProject();
-    runGsdTools('config-ensure-section', tmpDir);
+    runGsdTools('config-ensure-section', tmpDir, { HOME: tmpDir, USERPROFILE: tmpDir });
   });
 
   afterEach(() => { cleanup(tmpDir); });
