@@ -53,6 +53,24 @@ function runAudit(cwd, extraArgs = []) {
   return JSON.parse(r.output);
 }
 
+test('audit-open finds root debug sessions under an active workstream (#5042)', (t) => {
+  const tmpDir = createTempProject('gsd-5042-debug-');
+  t.after(() => cleanup(tmpDir));
+  fs.mkdirSync(path.join(tmpDir, '.planning', 'workstreams', 'alpha'), { recursive: true });
+  const debugDir = path.join(tmpDir, '.planning', 'debug');
+  fs.mkdirSync(debugDir);
+  fs.writeFileSync(path.join(debugDir, 'login-fails.md'),
+    '---\nstatus: investigating\n---\n## Current Focus\nlogin failure\n');
+
+  const result = runGsdTools(['audit-open', '--json'], tmpDir, {
+    GSD_WORKSTREAM: 'alpha', HOME: tmpDir, USERPROFILE: tmpDir,
+  });
+  assert.ok(result.success, result.error);
+  const audit = JSON.parse(result.output);
+  assert.equal(audit.counts.debug_sessions, 1);
+  assert.equal(audit.items.debug_sessions[0].slug, 'login-fails');
+});
+
 describe('#3804: audit-uat sees all three phase layouts', () => {
   test('#3804: archived workstream milestones surface in audit-uat', (t) => {
     const tmpDir = createTempProject('gsd-3804-wsarch-');
