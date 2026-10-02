@@ -20,7 +20,22 @@ describe('#4839: update check must not break SessionStart', () => {
     const result = runNode(['-e', source], { cwd: home, env });
     assert.equal(result.outcome, OUTCOME.EXITED, result.stderr);
     assert.equal(result.exitCode, 0, result.stderr);
+    return home;
   }
+
+  test('normal launch creates the cache directory and starts the worker', (t) => {
+    const home = runHook(t, [
+      "const { EventEmitter } = require('node:events');",
+      "require('node:child_process').spawn = () => {",
+      "  require('node:fs').writeFileSync('spawned-worker', 'yes');",
+      '  const child = new EventEmitter();',
+      '  child.unref = () => {};',
+      '  return child;',
+      '};',
+    ].join('\n'));
+    assert.ok(fs.statSync(path.join(home, '.cache', 'gsd')).isDirectory());
+    assert.ok(fs.existsSync(path.join(home, 'spawned-worker')));
+  });
 
   test('unwritable cache path does not fail the hook', (t) => {
     runHook(t, '', true);

@@ -2,4 +2,4 @@
 type: Fixed
 pr: 5159
 ---
-The background update check now leaves SessionStart running when its cache or worker launch fails. (#4839)
+**SessionStart no longer fails when the background update check cannot start** — cache-directory or worker-launch failures leave the session running without an update hint. (#4839)
