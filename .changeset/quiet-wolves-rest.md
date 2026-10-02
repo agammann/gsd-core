@@ -2,4 +2,4 @@
 type: Fixed
 pr: 5160
 ---
-Claude Code effort sync and effective effort now read agents from the running project-local install. An empty agents directory reports why nothing was synced. (#4988)
+**`effort sync` and `resolve-execution` use a project-local Claude install's agents** — they no longer read the global agents directory when running from a local install, and an empty selected directory explains why nothing was synced. (#4988)

@@ -49,6 +49,26 @@ test('#4988: installed local CLI syncs and reads its own Claude agents', () => {
     const emptyExplicit = run(['effort', 'sync', '--dry-run', '--config-dir', globalDir]);
     assert.equal(emptyExplicit.agents_dir, path.join(globalDir, 'agents'));
     assert.equal(emptyExplicit.reason, 'no GSD agent files found');
+
+    const globalAgentPath = path.join(globalDir, 'agents', 'gsd-planner.md');
+    fs.writeFileSync(globalAgentPath, before);
+    const populatedExplicit = run(['effort', 'sync', '--dry-run', '--config-dir', globalDir]);
+    assert.equal(populatedExplicit.agents_dir, path.join(globalDir, 'agents'));
+    assert.ok(populatedExplicit.changes.some(change => change.agent === 'gsd-planner' && change.to === 'low'));
+
+    const manifestPath = path.join(configDir, 'gsd-file-manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    fs.writeFileSync(manifestPath, JSON.stringify({ ...manifest, scope: 'global' }));
+    const globalScope = run(['effort', 'sync', '--dry-run']);
+    assert.equal(globalScope.agents_dir, path.join(globalDir, 'agents'));
+    assert.ok(globalScope.changes.some(change => change.agent === 'gsd-planner' && change.to === 'low'));
+
+    const legacyManifest = { ...manifest };
+    delete legacyManifest.scope;
+    fs.writeFileSync(manifestPath, JSON.stringify(legacyManifest));
+    const absentScope = run(['effort', 'sync', '--dry-run']);
+    assert.equal(absentScope.agents_dir, path.join(globalDir, 'agents'));
+    assert.ok(absentScope.changes.some(change => change.agent === 'gsd-planner' && change.to === 'low'));
   } finally {
     cleanup(root);
   }
