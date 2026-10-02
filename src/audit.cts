@@ -442,7 +442,7 @@ function deriveOpenQuestionsDigest(questions: string[]): string {
 const DEBUG_KNOWLEDGE_BASE_FILENAME = 'knowledge-base.md';
 
 /**
- * Scan .planning/debug/ for open sessions.
+ * Scan the root-scoped .planning/debug/ directory supplied by the caller for open sessions.
  * Open = status NOT in ['resolved', 'complete'].
  * Ignores the resolved/ subdirectory and the debugger's knowledge base.
  */

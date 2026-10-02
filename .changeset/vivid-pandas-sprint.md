@@ -2,4 +2,4 @@
 type: Fixed
 pr: 5155
 ---
-Open debug sessions remain visible in audit-open and init.debug points to the shared project debug directory when a workstream is active. (#5042)
+**Open debug sessions stay visible under an active workstream** — audit-open reports sessions from the shared .planning/debug directory, and init.debug points the session manager there. (#5042)
