@@ -570,6 +570,34 @@ describe('#2427 — roadmap-grounded completion + tightened status regex', () =>
     });
   }
 
+  for (const [phase, total, completed] of [
+    [4, 8, 0],   // A later milestone can start below STATE.md's cached total.
+    [5, 5, 2],   // Equality does not establish that both fields share a scope.
+    ['13.1', 5, 2],
+  ]) {
+    test(`#4890: phase ${phase} avoids a mixed-scope ${total}-phase ratio`, () => {
+      const dir = track(makeProject({
+        state: state({ status: 'planning', current_phase: phase, total_phases: total }),
+        roadmap: roadmapWithProgress(total, completed, 4),
+      }));
+      const result = classifyProject(dir);
+      assert.equal(result.situation, 'planning');
+      assert.equal(result.summary, `Phase ${phase} (${completed} of ${total} roadmap phases complete) — needs a plan`);
+    });
+  }
+
+  test('#4890: missing roadmap counts keep a possible legacy ratio and drop an impossible one', () => {
+    for (const [phase, expected] of [[5, 'Phase 5 of 5'], [6, 'Phase 6']]) {
+      const dir = track(makeProject({
+        state: state({ status: 'planning', current_phase: phase, total_phases: 5 }),
+        roadmap: true,
+      }));
+      const result = classifyProject(dir);
+      assert.equal(result.situation, 'planning');
+      assert.equal(result.summary, `${expected} — needs a plan`);
+    }
+  });
+
   test('mid-milestone with stale total_phases + unchecked roadmap phases is NOT complete', () => {
     // The core bug: STATE.md says current_phase=7 >= total_phases=4 (stale,
     // from a milestone switch when only 4 phases existed). Status contains
