@@ -2333,10 +2333,6 @@ describe('install() global cline — coexistence: skills AND .clinerules', () =>
     sandboxHome(t, tmpGlobalDir);
     captureConsole(() => install(true, 'cline'));
 
-    const agentsFile = path.join(tmpGlobalDir, '.agents', 'AGENTS.md');
-    assert.ok(fs.existsSync(agentsFile), 'global cline install must merge instructions inside the sandboxed home');
-    assert.match(fs.readFileSync(agentsFile, 'utf8'), /GSD Configuration/);
-
     const skillsDir = path.join(tmpGlobalDir, 'skills');
     assert.ok(
       fs.existsSync(skillsDir),
@@ -2349,6 +2345,15 @@ describe('install() global cline — coexistence: skills AND .clinerules', () =>
       fs.existsSync(helpSkillFile),
       `${path.relative(tmpGlobalDir, helpSkillFile)} must exist under ${tmpGlobalDir} — skills emission broken for global cline`
     );
+  });
+
+  test('global cline install merges instructions into sandboxed AGENTS.md', (t) => {
+    sandboxHome(t, tmpGlobalDir);
+    captureConsole(() => install(true, 'cline'));
+
+    const agentsFile = path.join(tmpGlobalDir, '.agents', 'AGENTS.md');
+    assert.ok(fs.existsSync(agentsFile), 'global cline install must merge instructions inside the sandboxed home');
+    assert.match(fs.readFileSync(agentsFile, 'utf8'), /GSD Configuration/);
   });
 
   test('global cline install writes .clinerules/gsd.md to the global config dir', (t) => {
