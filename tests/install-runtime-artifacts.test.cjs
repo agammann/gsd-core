@@ -30,7 +30,7 @@ const espree = require('espree');
 const fc = require('./helpers/fast-check-setup.cjs');
 const { splitLines, joinLines } = require('../gsd-core/bin/lib/text-lines.cjs');
 
-const { createTempDir, cleanup, writePackageSourceMarkerFixture } = require('./helpers.cjs');
+const { createTempDir, cleanup, sandboxHome, writePackageSourceMarkerFixture } = require('./helpers.cjs');
 const { runNode } = require('./helpers/process-seam.cjs');
 const { INSTALL_TIMEOUT_MS } = require('./helpers/timeouts.cjs');
 
@@ -541,8 +541,6 @@ function readAllSkillMd(dir) {
 // #3712: promoted to tests/helpers.cjs, from the byte-identical copy that used to
 // live here. It now also sets the sandbox marker src/real-home-guard.cts needs to
 // stay permissive on hosts with no readable passwd entry.
-const { sandboxHome } = require('./helpers.cjs');
-
 describe('installRuntimeArtifacts — skills runtimes write gsd-prefixed skill dirs', () => {
   for (const runtime of SKILLS_RUNTIMES_LAYOUT) {
     test(`${runtime}: gsd-prefixed skill dirs in skills/`, (t) => {
