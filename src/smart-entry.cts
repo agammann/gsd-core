@@ -735,14 +735,15 @@ export function actionsFor(situation: Situation, s: SmartEntrySignals): SmartEnt
 function phaseSummary(s: SmartEntrySignals): string {
   const phase = s.current_phase ?? '?';
   const total = s.total_phases;
-  // The phase ID is global, while STATE.md's total may count only the active
-  // milestone. Never present an impossible global-phase/relative-total ratio.
+  // The phase ID is global, while ROADMAP.md counts the active milestone.
+  // A global ID can still be <= a milestone total, so compare neither number
+  // to the other when the roadmap count is available.
+  const roadmapTotal = s.roadmap_total_phases;
+  if (roadmapTotal !== null && roadmapTotal > 0) {
+    return `Phase ${phase} (${s.roadmap_completed_phases ?? 0} of ${roadmapTotal} roadmap phases complete)`;
+  }
+  // Without roadmap counts, retain the legacy ratio only when it is possible.
   if (s.current_phase !== null && total !== null && Number(s.current_phase) > total) {
-    const roadmapTotal = s.roadmap_total_phases;
-    const roadmapDone = s.roadmap_completed_phases;
-    if (roadmapTotal !== null && roadmapDone !== null && roadmapTotal > 0) {
-      return `Phase ${phase} (${roadmapDone} of ${roadmapTotal} roadmap phases complete)`;
-    }
     return `Phase ${phase}`;
   }
   return `Phase ${phase} of ${total ?? '?'}`;
