@@ -1046,6 +1046,20 @@ describe('#3045 CORE REDESIGN — dispatch-isolation records as an unconditional
     assert.equal(status.stdout.trim(), '', 'the sentinel must not appear in git status');
   });
 
+  test('a second dispatch leaves the new local ignore file unchanged (#5086)', (t) => {
+    const dir = createTempProject('gsd-5086-idempotent-');
+    t.after(() => cleanup(dir));
+    const env = { GSD_RUNTIME: 'claude', HOME: dir, USERPROFILE: dir };
+    const ignorePath = path.join(dir, '.gsd', '.gitignore');
+
+    for (let i = 0; i < 2; i++) {
+      const result = runGsdTools(['query', 'dispatch-isolation', '--raw'], dir, env);
+      assert.equal(result.success, true, result.error);
+      assert.equal(fs.readFileSync(ignorePath, 'utf8'), '*\n');
+      assert.equal(readSentinelRaw(dir).isolation, 'harness-worktree');
+    }
+  });
+
   test('dispatch sentinel preserves an existing local ignore file (#5086)', (t) => {
     const dir = createFixture({ prefix: 'gsd-5086-existing-', git: true, planning: true, projectDoc: true });
     t.after(() => cleanup(dir));
@@ -1069,6 +1083,70 @@ describe('#3045 CORE REDESIGN — dispatch-isolation records as an unconditional
     });
     assert.equal(status.exitCode, 0, status.stderr);
     assert.equal(status.stdout.trim(), '?? .gsd/keep.txt');
+  });
+
+  test('an unusable local ignore file does not prevent recording isolation (#5086)', (t) => {
+    const dir = createTempProject('gsd-5086-ignore-error-');
+    t.after(() => cleanup(dir));
+    const ignorePath = path.join(dir, '.gsd', '.gitignore');
+    fs.mkdirSync(ignorePath, { recursive: true });
+
+    const result = runGsdTools(
+      ['query', 'record-dispatch-isolation', '--isolation', 'none', '--json'], dir,
+      { HOME: dir, USERPROFILE: dir },
+    );
+    assert.equal(result.success, true, result.error);
+    assert.equal(JSON.parse(result.output).recorded, true);
+    assert.equal(readSentinelRaw(dir).isolation, 'none');
+  });
+
+  test('a symlinked .gsd directory cannot redirect sentinel writes (#5086)', (t) => {
+    const dir = createTempProject('gsd-5086-linked-dir-');
+    const outside = createTempDir('gsd-5086-outside-');
+    t.after(() => { cleanup(dir); cleanup(outside); });
+    try {
+      fs.symlinkSync(outside, path.join(dir, '.gsd'), 'junction');
+    } catch (err) {
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(err.code)) return t.skip(`symlink unavailable: ${err.code}`);
+      throw err;
+    }
+
+    const result = runGsdTools(
+      ['query', 'record-dispatch-isolation', '--isolation', 'none', '--json'], dir,
+      { HOME: dir, USERPROFILE: dir },
+    );
+    assert.equal(result.success, true, result.error);
+    const recorded = JSON.parse(result.output);
+    assert.equal(recorded.recorded, false);
+    assert.match(recorded.error, /sentinel directory is a symlink/);
+    assert.equal(fs.readdirSync(outside).length, 0);
+  });
+
+  test('a symlinked local ignore file cannot redirect writes (#5086)', (t) => {
+    const dir = createTempProject('gsd-5086-linked-ignore-');
+    const outside = createTempDir('gsd-5086-ignore-target-');
+    t.after(() => { cleanup(dir); cleanup(outside); });
+    const ignoreDir = path.join(dir, '.gsd');
+    fs.mkdirSync(ignoreDir);
+    const target = path.join(outside, 'target.txt');
+    fs.writeFileSync(target, 'unchanged\n');
+    try {
+      fs.symlinkSync(target, path.join(ignoreDir, '.gitignore'), 'file');
+    } catch (err) {
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(err.code)) return t.skip(`symlink unavailable: ${err.code}`);
+      throw err;
+    }
+
+    const result = runGsdTools(
+      ['query', 'record-dispatch-isolation', '--isolation', 'none', '--json'], dir,
+      { HOME: dir, USERPROFILE: dir },
+    );
+    assert.equal(result.success, true, result.error);
+    const recorded = JSON.parse(result.output);
+    assert.equal(recorded.recorded, false);
+    assert.match(recorded.error, /sentinel ignore file is a symlink/);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'unchanged\n');
+    assert.equal(fs.existsSync(sentinelFile(dir)), false);
   });
 
   // #3737 — the project-level opt-out (workflow.use_worktrees === false) is

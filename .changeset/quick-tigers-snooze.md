@@ -2,4 +2,4 @@
 type: Fixed
 pr: 5154
 ---
-Dispatch isolation sentinels now stay out of Git status in projects that do not already ignore .gsd. Existing local ignore rules are preserved. (#5086)
+**Keep dispatch isolation sentinels out of Git status** — projects without an existing `.gsd` ignore rule no longer show the tool-owned sentinel as untracked, while existing local ignore rules remain intact. (#5086)
