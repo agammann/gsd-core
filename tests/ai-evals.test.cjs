@@ -20,7 +20,7 @@ const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { runGsdTools, homeSandboxEnv, createTempDir, createTempProject, cleanup, withIsolatedProcessState } = require('./helpers.cjs');
+const { runGsdTools, homeSandboxEnv, seedConfigSection, createTempDir, createTempProject, cleanup, withIsolatedProcessState } = require('./helpers.cjs');
 
 const REPO_ROOT      = path.join(__dirname, '..');
 const AGENTS_DIR     = path.join(REPO_ROOT, 'agents');
@@ -33,10 +33,6 @@ const REFERENCES_DIR = path.join(REPO_ROOT, 'gsd-core', 'references');
 
 function readConfig(tmpDir) {
   return JSON.parse(fs.readFileSync(path.join(tmpDir, '.planning', 'config.json'), 'utf-8'));
-}
-
-function seedAiEvalConfig(tmpDir) {
-  return runGsdTools('config-ensure-section', tmpDir, { HOME: tmpDir, USERPROFILE: tmpDir });
 }
 
 function writeConfig(tmpDir, obj) {
@@ -66,7 +62,7 @@ describe('CONFIG: workflow.ai_integration_phase default', () => {
   afterEach(() => { cleanup(tmpDir); });
 
   test('config-ensure-section includes workflow.ai_integration_phase as boolean', () => {
-    const result = seedAiEvalConfig(tmpDir);
+    const result = seedConfigSection(tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const config = readConfig(tmpDir);
@@ -75,7 +71,7 @@ describe('CONFIG: workflow.ai_integration_phase default', () => {
   });
 
   test('workflow.ai_integration_phase defaults to true', () => {
-    seedAiEvalConfig(tmpDir);
+    seedConfigSection(tmpDir);
     const config = readConfig(tmpDir);
     assert.strictEqual(config.workflow.ai_integration_phase, true, 'workflow.ai_integration_phase should default to true');
   });
@@ -91,7 +87,7 @@ describe('CONFIG: workflow.ai_integration_phase default', () => {
 
     const [control, seeded] = withIsolatedProcessState(() => {
       Object.assign(process.env, homeSandboxEnv(ambientHome));
-      return [runGsdTools('config-ensure-section', controlDir), seedAiEvalConfig(seededDir)];
+      return [runGsdTools('config-ensure-section', controlDir), seedConfigSection(seededDir)];
     });
 
     assert.ok(control.success, `Control seed failed: ${control.error}`);
@@ -110,7 +106,7 @@ describe('CONFIG: config-set / config-get workflow.ai_integration_phase', () => 
 
   beforeEach(() => {
     tmpDir = createTempProject();
-    seedAiEvalConfig(tmpDir);
+    seedConfigSection(tmpDir);
   });
 
   afterEach(() => { cleanup(tmpDir); });
