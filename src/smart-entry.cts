@@ -609,7 +609,11 @@ export function classify(s: SmartEntrySignals): Situation {
   if (s.paused) return 'paused';
   if (s.blockers.length > 0) return 'blocked';
   if (s.verify_failed) return 'verify-failed';
-  if (s.total_phases === null || s.total_phases <= 0 || !s.has_roadmap) return 'needs-first-phase';
+  // A parseable roadmap total is enough to identify an active project even if
+  // STATE.md has no cached total_phases field.
+  const hasPhaseTotal = (s.total_phases !== null && s.total_phases > 0)
+    || (s.roadmap_total_phases !== null && s.roadmap_total_phases > 0);
+  if (!hasPhaseTotal || !s.has_roadmap) return 'needs-first-phase';
   if (isComplete(s)) return 'complete';
   if (/\bplanning|planned\b/i.test(s.status)) return 'planning';
   if (/\bexecut(e|ing)|active|in.progress|building\b/i.test(s.status)) return 'executing';
@@ -779,10 +783,10 @@ function buildSummary(situation: Situation, s: SmartEntrySignals): string {
 
 function progressLine(tail: string, s: SmartEntrySignals): string {
   const parts: string[] = [];
-  if (s.current_phase !== null && s.total_phases !== null) {
-    parts.push(phaseSummary(s));
-  } else if (s.current_phase !== null) {
-    parts.push(`Phase ${s.current_phase}`);
+  if (s.current_phase !== null) {
+    const hasPhaseTotal = s.total_phases !== null
+      || (s.roadmap_total_phases !== null && s.roadmap_total_phases > 0);
+    parts.push(hasPhaseTotal ? phaseSummary(s) : `Phase ${s.current_phase}`);
   }
   if (s.progress !== null) parts.push(`${s.progress}%`);
   parts.push(tail);

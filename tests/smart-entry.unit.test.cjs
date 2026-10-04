@@ -570,6 +570,24 @@ describe('#2427 — roadmap-grounded completion + tightened status regex', () =>
     });
   }
 
+  for (const [status, situation, expected] of [
+    ['planning', 'planning', 'Phase 13 (2 of 5 roadmap phases complete) — needs a plan'],
+    ['executing', 'executing', 'Phase 13 (2 of 5 roadmap phases complete) · 40% · executing'],
+    ['verifying', 'verify-pending', 'Phase 13 (2 of 5 roadmap phases complete) · 40% · ready to verify'],
+  ]) {
+    test(`#4890: ${situation} uses roadmap counts when STATE.md omits total_phases`, () => {
+      const dir = track(makeProject({
+        state: state({ status, current_phase: 13, progress: 40 }),
+        roadmap: roadmapWithProgress(5, 2, 11),
+      }));
+      const result = classifyProject(dir);
+      assert.equal(result.signals.total_phases, null);
+      assert.equal(result.signals.roadmap_total_phases, 5);
+      assert.equal(result.situation, situation);
+      assert.equal(result.summary, expected);
+    });
+  }
+
   for (const [phase, total, completed] of [
     [4, 8, 0],   // A later milestone can start below STATE.md's cached total.
     [5, 5, 2],   // Equality does not establish that both fields share a scope.
@@ -587,7 +605,7 @@ describe('#2427 — roadmap-grounded completion + tightened status regex', () =>
   }
 
   test('#4890: missing roadmap counts keep a possible legacy ratio and drop an impossible one', () => {
-    for (const [phase, expected] of [[5, 'Phase 5 of 5'], [6, 'Phase 6']]) {
+    for (const [phase, expected] of [[4, 'Phase 4 of 5'], [5, 'Phase 5 of 5'], [6, 'Phase 6']]) {
       const dir = track(makeProject({
         state: state({ status: 'planning', current_phase: phase, total_phases: 5 }),
         roadmap: true,
@@ -596,6 +614,26 @@ describe('#2427 — roadmap-grounded completion + tightened status regex', () =>
       assert.equal(result.situation, 'planning');
       assert.equal(result.summary, `${expected} — needs a plan`);
     }
+  });
+
+  test('#4890: a Progress table with no phase rows keeps the legacy fallback', () => {
+    const dir = track(makeProject({
+      state: state({ status: 'planning', current_phase: 4, total_phases: 5 }),
+      roadmap: roadmapWithProgress(0, 0),
+    }));
+    const result = classifyProject(dir);
+    assert.equal(result.signals.roadmap_total_phases, null);
+    assert.equal(result.situation, 'planning');
+    assert.equal(result.summary, 'Phase 4 of 5 — needs a plan');
+  });
+
+  test('#4890: absent totals in both STATE.md and ROADMAP.md still need a first phase', () => {
+    const dir = track(makeProject({
+      state: state({ status: 'executing', current_phase: 13 }),
+      roadmap: true,
+    }));
+    const result = classifyProject(dir);
+    assert.equal(result.situation, 'needs-first-phase');
   });
 
   test('mid-milestone with stale total_phases + unchecked roadmap phases is NOT complete', () => {
