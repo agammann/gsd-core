@@ -537,10 +537,6 @@ function readAllSkillMd(dir) {
 // write to (and an uninstall would mutate) the developer's REAL ~/.agents/skills.
 // Sandbox HOME/USERPROFILE to configDir before resolving the layout or invoking
 // install/uninstall so codex's resolved skills dir is configDir/.agents/skills.
-//
-// #3712: promoted to tests/helpers.cjs, from the byte-identical copy that used to
-// live here. It now also sets the sandbox marker src/real-home-guard.cts needs to
-// stay permissive on hosts with no readable passwd entry.
 describe('installRuntimeArtifacts — skills runtimes write gsd-prefixed skill dirs', () => {
   for (const runtime of SKILLS_RUNTIMES_LAYOUT) {
     test(`${runtime}: gsd-prefixed skill dirs in skills/`, (t) => {
