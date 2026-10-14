@@ -1751,6 +1751,31 @@ describe('quick-tasks-migrate CLI and workflow wiring (#3730)', () => {
     assert.equal(fs.existsSync(path.join(tmpDir, '.planning', 'STATE.md')), false);
   });
 
+  test('an active workstream leaves an existing root STATE.md untouched (#5051)', (t) => {
+    const tmpDir = createTempProject('gsd-5051-root-');
+    t.after(() => cleanup(tmpDir));
+    const legacyState = [
+      '# State', '', '## Quick Tasks Completed', '',
+      '| Date | Slug | Scope | Artifacts |',
+      '|------|------|-------|-----------|',
+      '| 2026-04-17 | 260417-abc | bootstrap | roles/x |',
+    ].join('\n');
+    const rootPath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(rootPath, legacyState);
+    const workstreamDir = seedWorkstream(tmpDir, { name: 'alpha', state: legacyState, active: true });
+    const env = homeSandboxEnv(tmpDir);
+
+    const migrated = runGsdTools('quick-tasks-migrate', tmpDir, env);
+    assert.equal(migrated.success, true, `migrate failed: ${migrated.error}`);
+    assert.equal(JSON.parse(migrated.output).migrated, true);
+    assert.equal(fs.readFileSync(rootPath, 'utf8'), legacyState);
+
+    const appended = runGsdTools(['quick-tasks-append', '--task', 'Pointer task'], tmpDir, env);
+    assert.equal(appended.success, true, `append failed: ${appended.error}`);
+    assert.match(fs.readFileSync(path.join(workstreamDir, 'STATE.md'), 'utf8'), /\| Pointer task \|/);
+    assert.equal(fs.readFileSync(rootPath, 'utf8'), legacyState);
+  });
+
   test('migration reports a missing scoped STATE.md as an error (#5051)', (t) => {
     const tmpDir = createTempProject('gsd-5051-missing-');
     t.after(() => cleanup(tmpDir));
