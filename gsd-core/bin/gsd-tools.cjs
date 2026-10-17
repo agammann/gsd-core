@@ -312,7 +312,7 @@ try {
 } catch { /* advisory — never block */ }
 
 const { resolveActiveWorkstream, applyResolvedWorkstreamEnv, peekActiveWorkstream } = require('./lib/active-workstream-store.cjs');
-const { planningDir } = require('./lib/planning-workspace.cjs');
+const { planningDir, planningRoot } = require('./lib/planning-workspace.cjs');
 const state = require('./lib/state.cjs');
 const phase = require('./lib/phase.cjs');
 const roadmap = require('./lib/roadmap.cjs');
@@ -1449,7 +1449,7 @@ function dispatchOverlayCapabilityCommand({ command, args, cwd, raw, error, load
     const planningPath = planningDir(cwd);
     const statePath = path.join(planningPath, 'STATE.md');
     if (!fs.existsSync(statePath)) {
-      if (planningPath !== path.join(cwd, '.planning')) {
+      if (planningPath !== planningRoot(cwd)) {
         throw new ExitError(1, `quick-tasks-migrate: STATE.md not found at ${statePath}`);
       }
       output({ ok: true, migrated: false, reason: `STATE.md not found at ${statePath}` }, raw);

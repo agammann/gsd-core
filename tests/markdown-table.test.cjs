@@ -1776,6 +1776,30 @@ describe('quick-tasks-migrate CLI and workflow wiring (#3730)', () => {
     assert.equal(fs.readFileSync(rootPath, 'utf8'), legacyState);
   });
 
+  test('quick task migration and append target a selected project (#5051)', (t) => {
+    const tmpDir = createTempProject('gsd-5051-project-');
+    t.after(() => cleanup(tmpDir));
+    const projectDir = path.join(tmpDir, '.planning', 'client');
+    fs.mkdirSync(projectDir);
+    const statePath = path.join(projectDir, 'STATE.md');
+    fs.writeFileSync(statePath, [
+      '# State', '', '## Quick Tasks Completed', '',
+      '| Date | Slug | Scope | Artifacts |',
+      '|------|------|-------|-----------|',
+      '| 2026-04-17 | 260417-abc | bootstrap | roles/x |',
+    ].join('\n'));
+    const env = { ...homeSandboxEnv(tmpDir), GSD_PROJECT: 'client' };
+
+    const migrated = runGsdTools('quick-tasks-migrate', tmpDir, env);
+    assert.equal(migrated.success, true, 'project migrate failed: ' + migrated.error);
+    assert.equal(JSON.parse(migrated.output).migrated, true);
+
+    const appended = runGsdTools(['quick-tasks-append', '--task', 'Project task'], tmpDir, env);
+    assert.equal(appended.success, true, 'project append failed: ' + appended.error);
+    assert.match(fs.readFileSync(statePath, 'utf8'), /\| Project task \|/);
+    assert.equal(fs.existsSync(path.join(tmpDir, '.planning', 'STATE.md')), false);
+  });
+
   test('migration reports a missing scoped STATE.md as an error (#5051)', (t) => {
     const tmpDir = createTempProject('gsd-5051-missing-');
     t.after(() => cleanup(tmpDir));
@@ -1785,6 +1809,11 @@ describe('quick-tasks-migrate CLI and workflow wiring (#3730)', () => {
     const scoped = runGsdTools(['quick-tasks-migrate', '--ws', 'alpha'], tmpDir, env);
     assert.equal(scoped.success, false);
     assert.match(scoped.error, /quick-tasks-migrate: STATE\.md not found/);
+
+    const append = runGsdTools(['quick-tasks-append', '--ws', 'alpha', '--task', 'Missing task'], tmpDir, env);
+    assert.equal(append.success, false);
+    assert.match(append.error, /quick-tasks-append: STATE\.md not found/);
+    assert.match(append.error, /workstreams[\\/]alpha[\\/]STATE\.md/);
 
     fs.mkdirSync(path.join(tmpDir, '.planning', 'client'));
     const projectScoped = runGsdTools('quick-tasks-migrate', tmpDir,
